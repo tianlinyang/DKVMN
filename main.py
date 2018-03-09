@@ -1,15 +1,11 @@
 import torch
-import numpy as np
-from sklearn import metrics
-import sys
-import os, time, argparse
-import logging
+
+import argparse
 from model import MODEL
-from run import train, test, train_duolingo, test_duolingo
+from run import train, test
 import torch.optim as optim
 
 from data_loader import DATA
-import load_data_duolingo as ldd
 
 
 def main():
@@ -113,7 +109,8 @@ def main():
                 print("test_auc: %.4f\ttest_accuracy: %.4f\ttest_loss: %.4f\t" % (test_auc, test_accuracy, test_loss))
 
     print("best outcome: best epoch: %.4f" % (best_epoch))
-    print("valid_auc: %.4f\tvalid_accuracy: %.4f\tvalid_loss: %.4f\t" % (best_valid_auc, best_valid_acc, best_valid_loss))
+    print(
+        "valid_auc: %.4f\tvalid_accuracy: %.4f\tvalid_loss: %.4f\t" % (best_valid_auc, best_valid_acc, best_valid_loss))
     print("test_auc: %.4f\ttest_accuracy: %.4f\ttest_loss: %.4f\t" % (test_auc, test_accuracy, test_loss))
 
 
