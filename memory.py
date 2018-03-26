@@ -1,6 +1,6 @@
 import torch
+import utils as utils
 from torch import nn
-
 
 class DKVMNHeadGroup(nn.Module):
     def __init__(self, memory_size, memory_state_dim, is_write):
@@ -22,6 +22,7 @@ class DKVMNHeadGroup(nn.Module):
             nn.init.normal(self.add.weight, std=0.02)
             nn.init.constant(self.add.bias, 0)
 
+
     def addressing(self, control_input, memory):
         """
         Parameters
@@ -30,11 +31,11 @@ class DKVMNHeadGroup(nn.Module):
         Returns
             correlation_weight:     Shape (batch_size, memory_size)
         """
-        similarity_score = torch.matmul(control_input, memory.permute(1, 0))
-        correlation_weight = torch.nn.functional.softmax(similarity_score, dim=1)  # Shape: (batch_size, memory_size)
+        similarity_score = torch.matmul(control_input, torch.t(memory))
+        correlation_weight = torch.nn.functional.softmax(similarity_score, dim=1) # Shape: (batch_size, memory_size)
         return correlation_weight
 
-    def read(self, memory, control_input=None, read_weight=None):
+    def read(self, memory, control_input=None, read_weight=None ):
         """
         Parameters
             control_input:  Shape (batch_size, control_state_dim)
@@ -66,14 +67,16 @@ class DKVMNHeadGroup(nn.Module):
             write_weight = self.addressing(control_input=control_input, memory=memory)
         erase_signal = torch.sigmoid(self.erase(control_input))
         add_signal = torch.tanh(self.add(control_input))
-        erase_mult = 1 - write_weight.unsqueeze(2) * erase_signal.unsqueeze(1)
-        aggre_add_signal = write_weight.unsqueeze(2) * add_signal.unsqueeze(1)
-        new_memory = memory * erase_mult + aggre_add_signal
+        erase_reshape = erase_signal.view(-1, 1, self.memory_state_dim)
+        add_reshape = add_signal.view(-1, 1, self.memory_state_dim)
+        write_weight_reshape = write_weight.view(-1, self.memory_size, 1)
+        erase_mult = torch.mul(erase_reshape, write_weight_reshape)
+        aggre_add_signal = torch.mul(add_reshape, write_weight_reshape)
+        new_memory = memory * (1 - erase_mult) + aggre_add_signal
         return new_memory
 
-
 class DKVMN(nn.Module):
-    def __init__(self, memory_size, memory_key_state_dim, memory_value_state_dim, batch_size):
+    def __init__(self, memory_size, memory_key_state_dim, memory_value_state_dim, init_memory_key):
         super(DKVMN, self).__init__()
         """
         :param memory_size:             scalar
@@ -100,11 +103,13 @@ class DKVMN(nn.Module):
                                          memory_state_dim=self.memory_value_state_dim,
                                          is_write=True)
 
-        self.memory_key = self.init_memory_key
+        self.memory_key = init_memory_key
 
         # self.memory_value = self.init_memory_value
-        self.memory_value = nn.Parameter(
-            torch.cat([self.init_memory_value.unsqueeze(0) for _ in range(self.batch_size)], 0).data)
+        self.memory_value = None
+
+    def init_value_memory(self, memory_value):
+        self.memory_value = memory_value
 
     def attention(self, control_input):
         correlation_weight = self.key_head.addressing(control_input=control_input, memory=self.memory_key)
@@ -112,12 +117,13 @@ class DKVMN(nn.Module):
 
     def read(self, read_weight):
         read_content = self.value_head.read(memory=self.memory_value, read_weight=read_weight)
+
         return read_content
 
     def write(self, write_weight, control_input):
         memory_value = self.value_head.write(control_input=control_input,
                                              memory=self.memory_value,
                                              write_weight=write_weight)
-
         self.memory_value = nn.Parameter(memory_value.data)
+
         return self.memory_value
