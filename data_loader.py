@@ -44,7 +44,7 @@ class DATA(object):
                     if len(Q) % self.seqlen:
                         n_split = n_split + 1
                 #print('n_split:',n_split)
-                for k in range(n_split):
+                for k in range(1):
                     question_sequence = []
                     answer_sequence = []
                     if k == n_split - 1:

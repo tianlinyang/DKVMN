@@ -8,13 +8,10 @@ from sklearn import metrics
 
 def train(epoch_num, model, params, optimizer, q_data, qa_data):
     N = int(math.floor(len(q_data) / params.batch_size))
-    # q_data = q_data.T # Shape: (200,3633)
-    # qa_data = qa_data.T  # Shape: (200,3633)
-    # Shuffle the data
-    # shuffled_ind = np.arange(q_data.shape[1])
-    # np.random.shuffle(shuffled_ind)
-    # q_data = q_data[:, shuffled_ind]
-    # qa_data = qa_data[:, shuffled_ind]
+
+    # shuffle_index = np.random.permutation(q_data.shape[0])
+    # q_data_shuffled = q_data[shuffle_index]
+    # qa_data_shuffled = qa_data[shuffle_index]
 
     pred_list = []
     target_list = []
@@ -54,12 +51,12 @@ def train(epoch_num, model, params, optimizer, q_data, qa_data):
 
     all_pred = np.concatenate(pred_list, axis=0)
     all_target = np.concatenate(target_list, axis=0)
-    if (epoch_num + 1) % 10 == 0:
-        utils.adjust_learning_rate(optimizer, params.init_lr * params.lr_decay)
+    # if (epoch_num + 1) % 5 == 0:
+    #     utils.adjust_learning_rate(optimizer, params.init_lr * params.lr_decay)
     # print('lr: ', params.init_lr / (1 + 0.75))
     # utils.adjust_learning_rate(optimizer, params.init_lr / (1 + 0.75))
-    print("all_target", all_target)
-    print("all_pred", all_pred)
+    # print("all_target", all_target)
+    # print("all_pred", all_pred)
     auc = metrics.roc_auc_score(all_target, all_pred)
     all_pred[all_pred >= 0.5] = 1.0
     all_pred[all_pred < 0.5] = 0.0
