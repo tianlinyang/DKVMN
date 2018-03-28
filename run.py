@@ -26,7 +26,6 @@ def train(epoch_num, model, params, optimizer, q_data, qa_data):
 
         target = (target - 1) / params.n_question
         target = np.floor(target)
-
         input_q = utils.varible(torch.LongTensor(q_one_seq), params.gpu)
         input_qa = utils.varible(torch.LongTensor(qa_batch_seq), params.gpu)
         target = utils.varible(torch.FloatTensor(target), params.gpu)
@@ -51,7 +50,7 @@ def train(epoch_num, model, params, optimizer, q_data, qa_data):
 
     all_pred = np.concatenate(pred_list, axis=0)
     all_target = np.concatenate(target_list, axis=0)
-    # if (epoch_num + 1) % 5 == 0:
+    # if (epoch_num + 1) % params.decay_epoch == 0:
     #     utils.adjust_learning_rate(optimizer, params.init_lr * params.lr_decay)
     # print('lr: ', params.init_lr / (1 + 0.75))
     # utils.adjust_learning_rate(optimizer, params.init_lr / (1 + 0.75))

@@ -17,10 +17,10 @@ class DKVMNHeadGroup(nn.Module):
         self.is_write = is_write
         if self.is_write:
             self.erase = torch.nn.Linear(self.memory_state_dim, self.memory_state_dim, bias=True)
-            nn.init.normal(self.erase.weight, std=0.02)
-            nn.init.constant(self.erase.bias, 0)
             self.add = torch.nn.Linear(self.memory_state_dim, self.memory_state_dim, bias=True)
-            nn.init.normal(self.add.weight, std=0.02)
+            nn.init.kaiming_normal(self.erase.weight)
+            nn.init.kaiming_normal(self.add.weight)
+            nn.init.constant(self.erase.bias, 0)
             nn.init.constant(self.add.bias, 0)
 
 
@@ -72,8 +72,8 @@ class DKVMNHeadGroup(nn.Module):
         add_reshape = add_signal.view(-1, 1, self.memory_state_dim)
         write_weight_reshape = write_weight.view(-1, self.memory_size, 1)
         erase_mult = torch.mul(erase_reshape, write_weight_reshape)
-        aggre_add_signal = torch.mul(add_reshape, write_weight_reshape)
-        new_memory = memory * (1 - erase_mult) + aggre_add_signal
+        add_mul = torch.mul(add_reshape, write_weight_reshape)
+        new_memory = memory * (1 - erase_mult) + add_mul
         return new_memory
 
 class DKVMN(nn.Module):
@@ -90,11 +90,6 @@ class DKVMN(nn.Module):
         self.memory_key_state_dim = memory_key_state_dim
         self.memory_value_state_dim = memory_value_state_dim
 
-        self.init_memory_key = nn.Parameter(torch.randn(self.memory_size, self.memory_key_state_dim))
-        nn.init.normal(self.init_memory_key, std=0.1)
-        self.init_memory_value = nn.Parameter(torch.randn(self.memory_size, self.memory_value_state_dim))
-
-        nn.init.normal(self.init_memory_value, std=0.1)
         self.key_head = DKVMNHeadGroup(memory_size=self.memory_size,
                                        memory_state_dim=self.memory_key_state_dim,
                                        is_write=False)
@@ -120,10 +115,12 @@ class DKVMN(nn.Module):
 
         return read_content
 
-    def write(self, write_weight, control_input):
+    def write(self, write_weight, control_input, if_write_memory):
         memory_value = self.value_head.write(control_input=control_input,
                                              memory=self.memory_value,
                                              write_weight=write_weight)
+        # if_write_memory = torch.cat([if_write_memory.unsqueeze(1) for _ in range(self.memory_value_state_dim)], 1)
+
         self.memory_value = nn.Parameter(memory_value.data)
 
         return self.memory_value
